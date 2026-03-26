@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Пользователь ───────────────────────────────
+model User {
+  id             Int      @id @default(autoincrement())
+  telegramId     BigInt   @unique
+  firstName      String?
+  lastName       String?
+  username       String?
+  language       String   @default("ru")
+  currency       String   @default("EUR")
+  onboardingDone Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  accounts      Account[]
+  expenses      Expense[]
+  incomes       Income[]
+  subscriptions Subscription[]
+  debts         Debt[]
+  peopleDebts   PersonDebt[]
+}
+
+// ─── Счета (банки, наличные, крипто, вклады) ─────
+model Account {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  user     User    @relation(fields: [userId], references: [id])
+  name     String
+  type     String  // bank, card, cash, crypto, deposit, savings, other
+  balance  Decimal @db.Decimal(12, 2)
+  currency String  @default("EUR")
+  icon     String?
+  color    String?
+
+  interestRate   Decimal?  @db.Decimal(5, 2)
+  maturityDate   DateTime?
+  nextInterestAt DateTime?
+  interestAmount Decimal?  @db.Decimal(12, 2)
+
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  expenses Expense[]
+  incomes  Income[]
+}
+
+// ─── Расходы ─────────────────────────────────────
+model Expense {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  accountId Int?
+  account   Account? @relation(fields: [accountId], references: [id])
+  name      String
+  amount    Decimal  @db.Decimal(12, 2)
+  category  String
+  date      DateTime @default(now())
+  note      String?
+  source    String   @default("bot")
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, category])
+}
+
+// ─── Доходы / Поступления ────────────────────────
+model Income {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  accountId   Int?
+  account     Account? @relation(fields: [accountId], references: [id])
+  name        String
+  amount      Decimal  @db.Decimal(12, 2)
+  type        String   // salary, freelance, interest, gift, refund, found, other
+  date        DateTime @default(now())
+  note        String?
+  isRecurring Boolean  @default(false)
+  recurDay    Int?
+  source      String   @default("bot")
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ─── Подписки ────────────────────────────────────
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  price     Decimal  @db.Decimal(12, 2)
+  currency  String   @default("EUR")
+  cycle     String   @default("monthly")
+  icon      String?
+  color     String?
+  nextDate  DateTime
+  isActive  Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isActive])
+}
+
+// ─── Кредиты / Ипотеки / Рассрочки ──────────────
+model Debt {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  type            String   // mortgage, credit, installment
+  name            String
+  bank            String?
+  totalAmount     Decimal  @db.Decimal(14, 2)
+  remainingAmount Decimal  @db.Decimal(14, 2)
+  monthlyPayment  Decimal  @db.Decimal(12, 2)
+  interestRate    Decimal  @db.Decimal(5, 2) @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  paidMonths      Int      @default(0)
+  totalMonths     Int
+  nextPayment     DateTime
+  note            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, type])
+}
+
+// ─── Личные долги (люди) ─────────────────────────
+model PersonDebt {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  personName String
+  avatar     String?
+  direction  String    // they_owe | i_owe
+  amount     Decimal   @db.Decimal(12, 2)
+  reason     String?
+  date       DateTime  @default(now())
+  isSettled  Boolean   @default(false)
+  settledAt  DateTime?
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, isSettled])
+}
