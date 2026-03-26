@@ -1,0 +1,21 @@
+{
+  "name": "cashflow",
+  "private": true,
+  "workspaces": ["bot", "api", "webapp"],
+  "scripts": {
+    "dev:bot": "npm run dev -w bot",
+    "dev:api": "npm run dev -w api",
+    "dev:webapp": "npm run dev -w webapp",
+    "build": "npm run build -w api && npm run build -w bot && npm run build -w webapp",
+    "db:migrate": "npx prisma migrate dev",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push"
+  },
+  "devDependencies": {
+    "prisma": "^5.20.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0"
+  }
+}
