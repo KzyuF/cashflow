@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Bars } from "../components/charts/Bars";
 import { IconCircle } from "../components/ui/IconCircle";
-import { ACCOUNT_TYPES } from "../utils/constants";
+import { ACCOUNT_TYPES, currencySymbol } from "../utils/constants";
 import { fmtK, daysUntil } from "../utils/format";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
 
 interface DashboardData {
+  mainCurrency: string;
+  ratesDate: string | null;
   totalCapital: number;
   netWorth: number;
   totalDebtRemaining: number;
@@ -25,9 +27,13 @@ export function Home() {
   const [data, setData] = useState<DashboardData | null>(null);
   const setTab = useAppStore((s) => s.setActiveTab);
   const setModal = useAppStore((s) => s.setModal);
+  const setUserCurrency = useAppStore((s) => s.setUserCurrency);
 
   useEffect(() => {
-    api.getDashboard().then(setData).catch(console.error);
+    api.getDashboard().then((d) => {
+      setData(d);
+      if (d.mainCurrency) setUserCurrency(d.mainCurrency);
+    }).catch(console.error);
   }, []);
 
   const weekData = useMemo(
@@ -48,6 +54,7 @@ export function Home() {
     );
   }
 
+  const sym = currencySymbol(data.mainCurrency);
   const totalFlow =
     data.monthlyIncome -
     data.monthlyExpenses -
@@ -71,16 +78,21 @@ export function Home() {
           </div>
           <div className="text-[38px] font-black font-mono tracking-tight leading-none">
             {fmtK(data.totalCapital)}
-            <span className="text-lg text-[#556]"> €</span>
+            <span className="text-lg text-[#556]"> {sym}</span>
           </div>
           <div className="flex gap-4 mt-2.5 text-xs">
             <span className="text-accent-green">
-              Чистый: {fmtK(data.netWorth)} €
+              Чистый: {fmtK(data.netWorth)} {sym}
             </span>
             <span className="text-accent-red">
-              Долги: {fmtK(data.totalDebtRemaining)} €
+              Долги: {fmtK(data.totalDebtRemaining)} {sym}
             </span>
           </div>
+          {data.ratesDate && (
+            <div className="text-[9px] text-[#445] mt-1.5">
+              по курсу ЦБ РФ на {data.ratesDate}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -100,6 +112,7 @@ export function Home() {
         <div className="flex gap-2 overflow-x-auto pb-1.5">
           {data.accounts.map((a: any) => {
             const meta = ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other;
+            const accSym = currencySymbol(a.currency);
             return (
               <div
                 key={a.id}
@@ -119,8 +132,13 @@ export function Home() {
                   className="text-[17px] font-black font-mono"
                   style={{ color: meta.color }}
                 >
-                  {fmtK(Number(a.balance))} €
+                  {fmtK(Number(a.balance))} {accSym}
                 </div>
+                {a.balanceInMain != null && (
+                  <div className="text-[10px] text-[#556] font-mono">
+                    ≈ {fmtK(a.balanceInMain)} {sym}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -203,7 +221,7 @@ export function Home() {
                 </div>
                 <div className="text-right">
                   <div className="font-extrabold text-[15px] font-mono text-accent-green">
-                    +{item.amount} €
+                    +{item.amount} {currencySymbol(item.currency)}
                   </div>
                   <div className="text-[10px] text-[#556]">проценты</div>
                 </div>
@@ -225,7 +243,7 @@ export function Home() {
                 Тебе
               </div>
               <div className="text-lg font-black font-mono text-accent-green">
-                +{data.peopleBalance.theyOweMe.toFixed(0)} €
+                +{data.peopleBalance.theyOweMe.toFixed(0)} {sym}
               </div>
             </div>
             <div className="flex-1 bg-accent-red/[0.06] rounded-[13px] p-[11px] text-center">
@@ -233,7 +251,7 @@ export function Home() {
                 Ты
               </div>
               <div className="text-lg font-black font-mono text-accent-red">
-                −{data.peopleBalance.iOweThem.toFixed(0)} €
+                −{data.peopleBalance.iOweThem.toFixed(0)} {sym}
               </div>
             </div>
           </Card>
@@ -268,7 +286,7 @@ export function Home() {
                 {p.name}
               </span>
               <span className="text-[13px] font-extrabold font-mono">
-                {p.amount.toFixed(2)} €
+                {p.amount.toFixed(2)} {currencySymbol(p.currency)}
               </span>
               <span className="text-[10px] text-[#556]">
                 через {daysUntil(p.date)} дн.

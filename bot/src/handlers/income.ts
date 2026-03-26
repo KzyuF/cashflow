@@ -2,13 +2,20 @@ import type { Bot } from "grammy";
 import type { BotContext } from "../types.js";
 import { incomeAccountKeyboard } from "../keyboards/inline.js";
 import { prisma } from "../bot.js";
+import { currencySymbol, detectCurrencyInText } from "../../../shared/currencies.js";
 
 export function setupIncomeHandler(bot: Bot<BotContext>) {
   bot.command("income", async (ctx) => {
     ctx.session.step = "income_waiting";
+    const isRu = ctx.dbUser!.language === "ru";
     await ctx.reply(
-      "💰 Введите сумму и описание:\n" +
-        'Пример: `3200 зарплата` или `450 фриланс проект`',
+      isRu
+        ? "💰 Введите сумму и описание:\n" +
+          "Пример: `3200 зарплата` или `450 фриланс проект`\n" +
+          "С валютой: `100 usd подарок`"
+        : "💰 Enter amount and description:\n" +
+          "Example: `3200 salary` or `450 freelance project`\n" +
+          "With currency: `100 usd gift`",
       { parse_mode: "Markdown" }
     );
   });
@@ -18,51 +25,62 @@ export function setupIncomeHandler(bot: Bot<BotContext>) {
     if (ctx.session.step !== "income_waiting") return next();
 
     const text = ctx.message.text;
-    const match = text.match(/(\d[\d\s]*[.,]?\d*)\s*(.*)/);
+    const isRu = ctx.dbUser!.language === "ru";
+
+    // Detect currency
+    const { cleanText, currency: detectedCurrency } = detectCurrencyInText(text);
+    const incCurrency = detectedCurrency || ctx.dbUser!.currency;
+
+    const match = cleanText.match(/(\d[\d\s]*[.,]?\d*)\s*(.*)/);
     if (!match) {
-      await ctx.reply("Не могу разобрать. Введите сумму и описание, например: `450 фриланс`", {
-        parse_mode: "Markdown",
-      });
+      await ctx.reply(
+        isRu
+          ? "Не могу разобрать. Введите сумму и описание, например: `450 фриланс`"
+          : "Can't parse. Enter amount and description, e.g.: `450 freelance`",
+        { parse_mode: "Markdown" }
+      );
       return;
     }
 
     const amount = parseFloat(match[1].replace(/\s/g, "").replace(",", "."));
-    let name = match[2].trim() || "Поступление";
+    let name = match[2].trim() || (isRu ? "Поступление" : "Income");
     name = name.charAt(0).toUpperCase() + name.slice(1);
 
     // Detect type from keywords
     let type = "other";
     const lower = text.toLowerCase();
     if (/зарплат|salary/.test(lower)) type = "salary";
-    else if (/фриланс|freelance|проект/.test(lower)) type = "freelance";
+    else if (/фриланс|freelance|проект|project/.test(lower)) type = "freelance";
     else if (/процент|interest/.test(lower)) type = "interest";
     else if (/подарок|gift/.test(lower)) type = "gift";
     else if (/возврат|refund|кэшбэк|cashback/.test(lower)) type = "refund";
 
     // Store temp data
-    ctx.session.data = { amount, name, type };
+    ctx.session.data = { amount, name, type, currency: incCurrency };
     ctx.session.step = "income_account";
 
     const accounts = await prisma.account.findMany({
       where: { userId: ctx.dbUser!.id, isArchived: false },
     });
 
-    const currency = ctx.dbUser!.currency;
+    const sym = currencySymbol(incCurrency);
     if (accounts.length > 0) {
       await ctx.reply(
-        `💰 *${name}* — +${amount.toFixed(2)} ${currency}\n\nНа какой счёт?`,
+        isRu
+          ? `💰 *${name}* — +${amount.toFixed(2)} ${sym}\n\nНа какой счёт?`
+          : `💰 *${name}* — +${amount.toFixed(2)} ${sym}\n\nTo which account?`,
         {
           parse_mode: "Markdown",
           reply_markup: incomeAccountKeyboard(accounts),
         }
       );
     } else {
-      // No accounts, save directly
       await prisma.income.create({
         data: {
           userId: ctx.dbUser!.id,
           name,
           amount,
+          currency: incCurrency,
           type,
           source: "bot",
         },
@@ -70,7 +88,9 @@ export function setupIncomeHandler(bot: Bot<BotContext>) {
       ctx.session.step = null;
       ctx.session.data = {};
       await ctx.reply(
-        `💰 Записал поступление: *${name}* — +${amount.toFixed(2)} ${currency}`,
+        isRu
+          ? `💰 Записал поступление: *${name}* — +${amount.toFixed(2)} ${sym}`
+          : `💰 Recorded income: *${name}* — +${amount.toFixed(2)} ${sym}`,
         { parse_mode: "Markdown" }
       );
     }
@@ -83,6 +103,7 @@ export function setupIncomeHandler(bot: Bot<BotContext>) {
       amount: number;
       name: string;
       type: string;
+      currency: string;
     };
     const accountId = accountVal === "skip" ? null : parseInt(accountVal);
 
@@ -91,6 +112,7 @@ export function setupIncomeHandler(bot: Bot<BotContext>) {
         userId: ctx.dbUser!.id,
         name: data.name,
         amount: data.amount,
+        currency: data.currency,
         type: data.type,
         accountId,
         source: "bot",
@@ -104,14 +126,17 @@ export function setupIncomeHandler(bot: Bot<BotContext>) {
       });
     }
 
-    const currency = ctx.dbUser!.currency;
+    const sym = currencySymbol(data.currency);
     ctx.session.step = null;
     ctx.session.data = {};
 
+    const isRu = ctx.dbUser!.language === "ru";
     await ctx.editMessageText(
-      `💰 Записал поступление: *${data.name}* — +${data.amount.toFixed(2)} ${currency}`,
+      isRu
+        ? `💰 Записал поступление: *${data.name}* — +${data.amount.toFixed(2)} ${sym}`
+        : `💰 Recorded income: *${data.name}* — +${data.amount.toFixed(2)} ${sym}`,
       { parse_mode: "Markdown" }
     );
-    await ctx.answerCallbackQuery("Записано!");
+    await ctx.answerCallbackQuery(isRu ? "Записано!" : "Recorded!");
   });
 }

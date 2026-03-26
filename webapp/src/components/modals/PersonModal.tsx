@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Modal, ModalInput, ModalButton } from "../ui/Modal";
-import { AVATARS } from "../../utils/constants";
+import { Pill } from "../ui/Pill";
+import { AVATARS, CURRENCY_CODES, CURRENCIES, currencySymbol } from "../../utils/constants";
 import { api } from "../../api/client";
+import { useAppStore } from "../../store";
 
 interface Props {
   onClose: () => void;
@@ -13,6 +15,8 @@ export function PersonModal({ onClose }: Props) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [avatar, setAvatar] = useState("🧑‍💻");
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const [currency, setCurrency] = useState(userCurrency);
 
   const handleSubmit = async () => {
     if (!name || !amount) return;
@@ -20,6 +24,7 @@ export function PersonModal({ onClose }: Props) {
       personName: name,
       direction,
       amount: parseFloat(amount),
+      currency,
       reason: reason || undefined,
       avatar,
     });
@@ -65,12 +70,25 @@ export function PersonModal({ onClose }: Props) {
         onChange={(e) => setName(e.target.value)}
       />
       <ModalInput
-        placeholder="Сумма €"
+        placeholder={`Сумма ${currencySymbol(currency)}`}
         type="number"
         inputMode="decimal"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />
+      <div className="text-xs text-[#556] mb-1.5 font-semibold">Валюта</div>
+      <div className="flex gap-[5px] flex-wrap mb-3">
+        {CURRENCY_CODES.map((code) => (
+          <Pill
+            key={code}
+            selected={currency === code}
+            color="#00d2ff"
+            onClick={() => setCurrency(code)}
+          >
+            {CURRENCIES[code].symbol} {code}
+          </Pill>
+        ))}
+      </div>
       <ModalInput
         placeholder="За что? (необязательно)"
         value={reason}

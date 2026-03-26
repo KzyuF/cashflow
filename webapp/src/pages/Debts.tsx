@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Ring } from "../components/charts/Ring";
 import { ProgressBar } from "../components/ui/ProgressBar";
-import { DEBT_TYPES } from "../utils/constants";
+import { DEBT_TYPES, currencySymbol } from "../utils/constants";
 import { fmtK, pct } from "../utils/format";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
@@ -11,6 +11,8 @@ export function Debts() {
   const [debts, setDebts] = useState<any[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const setModal = useAppStore((s) => s.setModal);
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const sym = currencySymbol(userCurrency);
 
   useEffect(() => {
     api.getDebts().then(setDebts).catch(console.error);
@@ -49,13 +51,13 @@ export function Debts() {
             <div className="text-base font-black font-mono">
               {fmtK(totalRemaining)}
             </div>
-            <div className="text-[8px] text-[#556]">EUR</div>
+            <div className="text-[8px] text-[#556]">{userCurrency}</div>
           </Ring>
           <div className="flex-1">
             <div className="text-[11px] text-[#556] mb-1.5">Ежемесячно</div>
             <div className="text-2xl font-black font-mono text-accent-purple">
               {totalMonthly}
-              <span className="text-[13px] text-[#556]"> €</span>
+              <span className="text-[13px] text-[#556]"> {sym}</span>
             </div>
             <ProgressBar
               percent={pct(totalPaid, totalAll)}
@@ -148,7 +150,7 @@ export function Debts() {
                       </div>
                       <div className="text-right">
                         <div className="font-extrabold text-[15px] font-mono">
-                          {Number(debt.monthlyPayment)} €
+                          {Number(debt.monthlyPayment)} {sym}
                         </div>
                         <div className="text-[9px] text-[#556]">/мес</div>
                       </div>
@@ -158,11 +160,11 @@ export function Debts() {
                         {[
                           {
                             label: "Всего",
-                            value: `${fmtK(Number(debt.totalAmount))} €`,
+                            value: `${fmtK(Number(debt.totalAmount))} ${sym}`,
                           },
                           {
                             label: "Остаток",
-                            value: `${fmtK(Number(debt.remainingAmount))} €`,
+                            value: `${fmtK(Number(debt.remainingAmount))} ${sym}`,
                           },
                           {
                             label: "Выплачено",

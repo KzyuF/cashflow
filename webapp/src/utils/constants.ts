@@ -1,3 +1,28 @@
+export const CURRENCIES: Record<
+  string,
+  { symbol: string; name: string; nameEn: string }
+> = {
+  RUB: { symbol: "₽", name: "Российский рубль", nameEn: "Russian Ruble" },
+  EUR: { symbol: "€", name: "Евро", nameEn: "Euro" },
+  USD: { symbol: "$", name: "Доллар США", nameEn: "US Dollar" },
+  GBP: { symbol: "£", name: "Фунт стерлингов", nameEn: "British Pound" },
+  UAH: { symbol: "₴", name: "Гривна", nameEn: "Ukrainian Hryvnia" },
+  PLN: { symbol: "zł", name: "Злотый", nameEn: "Polish Zloty" },
+  TRY: { symbol: "₺", name: "Турецкая лира", nameEn: "Turkish Lira" },
+  KZT: { symbol: "₸", name: "Тенге", nameEn: "Kazakhstani Tenge" },
+  BYN: { symbol: "Br", name: "Белорусский рубль", nameEn: "Belarusian Ruble" },
+  GEL: { symbol: "₾", name: "Лари", nameEn: "Georgian Lari" },
+  AED: { symbol: "د.إ", name: "Дирхам ОАЭ", nameEn: "UAE Dirham" },
+  THB: { symbol: "฿", name: "Тайский бат", nameEn: "Thai Baht" },
+  CNY: { symbol: "¥", name: "Юань", nameEn: "Chinese Yuan" },
+};
+
+export const CURRENCY_CODES = Object.keys(CURRENCIES);
+
+export function currencySymbol(code: string): string {
+  return CURRENCIES[code]?.symbol || code;
+}
+
 export const CATEGORIES: Record<
   string,
   { name: string; icon: string; color: string }

@@ -104,4 +104,12 @@ export const api = {
     request<any>(`/people/${id}/settle`, { method: "PATCH" }),
   deletePerson: (id: number) =>
     request<any>(`/people/${id}`, { method: "DELETE" }),
+
+  // User
+  getUser: () => request<any>("/user"),
+  updateUser: (data: { currency?: string; language?: string }) =>
+    request<any>("/user", { method: "PATCH", body: JSON.stringify(data) }),
+
+  // Currency
+  getRates: () => request<any>("/currency/rates"),
 };

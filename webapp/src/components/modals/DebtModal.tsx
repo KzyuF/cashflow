@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Modal, ModalInput, ModalButton } from "../ui/Modal";
 import { Pill } from "../ui/Pill";
-import { DEBT_TYPES } from "../../utils/constants";
+import { DEBT_TYPES, CURRENCY_CODES, CURRENCIES, currencySymbol } from "../../utils/constants";
 import { api } from "../../api/client";
+import { useAppStore } from "../../store";
 
 interface Props {
   onClose: () => void;
@@ -15,6 +16,8 @@ export function DebtModal({ onClose }: Props) {
   const [monthlyPayment, setMonthlyPayment] = useState("");
   const [interestRate, setInterestRate] = useState("");
   const [totalMonths, setTotalMonths] = useState("");
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const [currency, setCurrency] = useState(userCurrency);
 
   const handleSubmit = async () => {
     if (!name || !totalAmount || !monthlyPayment) return;
@@ -30,6 +33,7 @@ export function DebtModal({ onClose }: Props) {
     await api.createDebt({
       type,
       name,
+      currency,
       totalAmount: total,
       remainingAmount: total,
       monthlyPayment: monthly,
@@ -44,6 +48,19 @@ export function DebtModal({ onClose }: Props) {
 
   return (
     <Modal title="Новое обязательство" onClose={onClose}>
+      <div className="text-xs text-[#556] mb-1.5 font-semibold">Валюта</div>
+      <div className="flex gap-[5px] flex-wrap mb-3">
+        {CURRENCY_CODES.map((code) => (
+          <Pill
+            key={code}
+            selected={currency === code}
+            color="#00d2ff"
+            onClick={() => setCurrency(code)}
+          >
+            {CURRENCIES[code].symbol} {code}
+          </Pill>
+        ))}
+      </div>
       <div className="flex gap-[7px] mb-3">
         {Object.entries(DEBT_TYPES).map(([k, dt]) => (
           <Pill
@@ -62,14 +79,14 @@ export function DebtModal({ onClose }: Props) {
         onChange={(e) => setName(e.target.value)}
       />
       <ModalInput
-        placeholder="Общая сумма €"
+        placeholder={`Общая сумма ${currencySymbol(currency)}`}
         type="number"
         inputMode="decimal"
         value={totalAmount}
         onChange={(e) => setTotalAmount(e.target.value)}
       />
       <ModalInput
-        placeholder="Платёж €/мес"
+        placeholder={`Платёж ${currencySymbol(currency)}/мес`}
         type="number"
         inputMode="decimal"
         value={monthlyPayment}

@@ -62,6 +62,7 @@ model Expense {
   account   Account? @relation(fields: [accountId], references: [id])
   name      String
   amount    Decimal  @db.Decimal(12, 2)
+  currency  String   @default("EUR")
   category  String
   date      DateTime @default(now())
   note      String?
@@ -81,6 +82,7 @@ model Income {
   account     Account? @relation(fields: [accountId], references: [id])
   name        String
   amount      Decimal  @db.Decimal(12, 2)
+  currency    String   @default("EUR")
   type        String   // salary, freelance, interest, gift, refund, found, other
   date        DateTime @default(now())
   note        String?
@@ -154,4 +156,17 @@ model PersonDebt {
   updatedAt  DateTime  @updatedAt
 
   @@index([userId, isSettled])
+}
+
+// ─── Курсы валют ─────────────────────────────────
+model CurrencyRate {
+  id        Int      @id @default(autoincrement())
+  base      String   // "RUB"
+  currency  String   // "USD"
+  rate      Decimal  @db.Decimal(16, 6)
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([base, currency, date])
+  @@index([currency, date])
 }

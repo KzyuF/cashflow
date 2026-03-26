@@ -22,8 +22,15 @@ const TABS = [
 ];
 
 export default function App() {
-  const { activeTab, setActiveTab, modal, setModal } = useAppStore();
+  const { activeTab, setActiveTab, modal, setModal, setUserCurrency, setUserLanguage } = useAppStore();
   const [accounts, setAccounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getUser().then((u) => {
+      if (u.currency) setUserCurrency(u.currency);
+      if (u.language) setUserLanguage(u.language);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.getAccounts().then(setAccounts).catch(() => {});

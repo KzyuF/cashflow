@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { IconCircle } from "../components/ui/IconCircle";
 import { ProgressBar } from "../components/ui/ProgressBar";
-import { CATEGORIES } from "../utils/constants";
+import { CATEGORIES, currencySymbol } from "../utils/constants";
 import { fmtDate, pct, daysUntil } from "../utils/format";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
@@ -11,6 +11,8 @@ export function Expenses() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
   const setModal = useAppStore((s) => s.setModal);
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const sym = currencySymbol(userCurrency);
 
   useEffect(() => {
     api.getExpenses().then(setExpenses).catch(console.error);
@@ -51,7 +53,7 @@ export function Expenses() {
             <div className="text-[11px] text-accent-red mb-0.5">Расходы</div>
             <div className="text-[26px] font-black font-mono text-accent-red leading-none">
               {totalExp.toFixed(0)}
-              <span className="text-sm text-[#556]"> €</span>
+              <span className="text-sm text-[#556]"> {sym}</span>
             </div>
           </div>
           <div className="w-px bg-white/[0.06]" />
@@ -61,7 +63,7 @@ export function Expenses() {
             </div>
             <div className="text-[26px] font-black font-mono text-accent-pink leading-none">
               {totalSubs.toFixed(0)}
-              <span className="text-sm text-[#556]"> €</span>
+              <span className="text-sm text-[#556]"> {sym}</span>
             </div>
           </div>
         </Card>
@@ -86,7 +88,7 @@ export function Expenses() {
               />
             </div>
             <div className="font-extrabold text-[13px] font-mono min-w-[60px] text-right">
-              {c.value.toFixed(0)} €
+              {c.value.toFixed(0)} {sym}
             </div>
           </div>
         ))}
@@ -130,7 +132,7 @@ export function Expenses() {
               </div>
             </div>
             <div className="font-extrabold text-sm font-mono">
-              {Number(sub.price).toFixed(2)} €
+              {Number(sub.price).toFixed(2)} {currencySymbol(sub.currency || userCurrency)}
             </div>
           </div>
         ))}
@@ -167,7 +169,7 @@ export function Expenses() {
                 </div>
               </div>
               <div className="font-extrabold text-sm font-mono text-accent-red">
-                −{Number(exp.amount).toFixed(2)}
+                −{Number(exp.amount).toFixed(2)} {currencySymbol(exp.currency || userCurrency)}
               </div>
             </div>
           );

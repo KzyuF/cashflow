@@ -15,6 +15,7 @@ export async function incomeRoutes(app: FastifyInstance) {
       name: string;
       amount: number;
       type: string;
+      currency?: string;
       accountId?: number;
       date?: string;
       note?: string;
@@ -22,11 +23,22 @@ export async function incomeRoutes(app: FastifyInstance) {
       recurDay?: number;
     };
 
+    let incCurrency = body.currency;
+    if (!incCurrency && body.accountId) {
+      const acc = await prisma.account.findUnique({ where: { id: body.accountId } });
+      incCurrency = acc?.currency;
+    }
+    if (!incCurrency) {
+      const user = await prisma.user.findUnique({ where: { id: request.userId } });
+      incCurrency = user?.currency || "EUR";
+    }
+
     const income = await prisma.income.create({
       data: {
         userId: request.userId,
         name: body.name,
         amount: body.amount,
+        currency: incCurrency,
         type: body.type,
         accountId: body.accountId,
         date: body.date ? new Date(body.date) : new Date(),

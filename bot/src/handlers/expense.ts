@@ -10,13 +10,20 @@ import {
   categoryKeyboard,
 } from "../keyboards/inline.js";
 import { prisma } from "../bot.js";
+import { currencySymbol } from "../../../shared/currencies.js";
 
 export function setupExpenseHandler(bot: Bot<BotContext>) {
   // /add command — interactive expense
   bot.command("add", async (ctx) => {
+    const isRu = ctx.dbUser!.language === "ru";
     await ctx.reply(
-      "💸 Введите расход:\n" +
-        'Например: `кофе 4.50` или `rimi 43.80`',
+      isRu
+        ? "💸 Введите расход:\n" +
+          "Например: `кофе 4.50` или `rimi 43.80`\n" +
+          "С валютой: `кофе 4.50 usd`"
+        : "💸 Enter expense:\n" +
+          "Example: `coffee 4.50` or `grocery 43.80`\n" +
+          "With currency: `coffee 4.50 usd`",
       { parse_mode: "Markdown" }
     );
   });
@@ -28,24 +35,30 @@ export function setupExpenseHandler(bot: Bot<BotContext>) {
       orderBy: { balance: "desc" },
     });
 
+    const isRu = ctx.dbUser!.language === "ru";
+
     if (accounts.length === 0) {
       await ctx.reply(
-        "У тебя пока нет счетов. Добавь их в Mini App! 📊"
+        isRu
+          ? "У тебя пока нет счетов. Добавь их в Mini App! 📊"
+          : "You don't have any accounts yet. Add them in Mini App! 📊"
       );
       return;
     }
 
-    const currency = ctx.dbUser!.currency;
     let total = 0;
     const lines = accounts.map((a) => {
       const bal = Number(a.balance);
       total += bal;
-      return `  ${a.name}: *${bal.toFixed(2)} ${currency}*`;
+      const sym = currencySymbol(a.currency);
+      return `  ${a.name}: *${bal.toFixed(2)} ${sym}*`;
     });
 
+    const mainSym = currencySymbol(ctx.dbUser!.currency);
     await ctx.reply(
-      `💰 *Баланс счетов:*\n\n${lines.join("\n")}\n\n` +
-        `📊 Итого: *${total.toFixed(2)} ${currency}*`,
+      isRu
+        ? `💰 *Баланс счетов:*\n\n${lines.join("\n")}\n\n📊 Итого: *${total.toFixed(2)} ${mainSym}*`
+        : `💰 *Account balances:*\n\n${lines.join("\n")}\n\n📊 Total: *${total.toFixed(2)} ${mainSym}*`,
       { parse_mode: "Markdown" }
     );
   });
@@ -71,7 +84,8 @@ export function setupExpenseHandler(bot: Bot<BotContext>) {
 
     const totalExp = expenses.reduce((s, e) => s + Number(e.amount), 0);
     const totalInc = incomes.reduce((s, i) => s + Number(i.amount), 0);
-    const currency = ctx.dbUser!.currency;
+    const mainSym = currencySymbol(ctx.dbUser!.currency);
+    const isRu = ctx.dbUser!.language === "ru";
 
     // Group expenses by category
     const byCat: Record<string, number> = {};
@@ -83,18 +97,25 @@ export function setupExpenseHandler(bot: Bot<BotContext>) {
       .sort((a, b) => b[1] - a[1])
       .map(
         ([cat, amount]) =>
-          `${getCategoryEmoji(cat)} ${getCategoryName(cat)}: ${amount.toFixed(2)} ${currency}`
+          `${getCategoryEmoji(cat)} ${getCategoryName(cat)}: ${amount.toFixed(2)} ${mainSym}`
       );
 
-    const monthName = now.toLocaleDateString("ru-RU", { month: "long" });
+    const monthName = isRu
+      ? now.toLocaleDateString("ru-RU", { month: "long" })
+      : now.toLocaleDateString("en-US", { month: "long" });
+
     await ctx.reply(
-      `📊 *Статистика за ${monthName}*\n\n` +
-        `💰 Доходы: +${totalInc.toFixed(2)} ${currency}\n` +
-        `💸 Расходы: −${totalExp.toFixed(2)} ${currency}\n` +
-        `${totalInc - totalExp >= 0 ? "📈" : "📉"} Итого: ${(totalInc - totalExp).toFixed(2)} ${currency}\n\n` +
-        (catLines.length > 0
-          ? `*По категориям:*\n${catLines.join("\n")}`
-          : "Расходов пока нет"),
+      isRu
+        ? `📊 *Статистика за ${monthName}*\n\n` +
+          `💰 Доходы: +${totalInc.toFixed(2)} ${mainSym}\n` +
+          `💸 Расходы: −${totalExp.toFixed(2)} ${mainSym}\n` +
+          `${totalInc - totalExp >= 0 ? "📈" : "📉"} Итого: ${(totalInc - totalExp).toFixed(2)} ${mainSym}\n\n` +
+          (catLines.length > 0 ? `*По категориям:*\n${catLines.join("\n")}` : "Расходов пока нет")
+        : `📊 *Stats for ${monthName}*\n\n` +
+          `💰 Income: +${totalInc.toFixed(2)} ${mainSym}\n` +
+          `💸 Expenses: −${totalExp.toFixed(2)} ${mainSym}\n` +
+          `${totalInc - totalExp >= 0 ? "📈" : "📉"} Total: ${(totalInc - totalExp).toFixed(2)} ${mainSym}\n\n` +
+          (catLines.length > 0 ? `*By category:*\n${catLines.join("\n")}` : "No expenses yet"),
       { parse_mode: "Markdown" }
     );
   });
@@ -118,9 +139,9 @@ export function setupExpenseHandler(bot: Bot<BotContext>) {
       data: { category },
     });
 
-    const currency = ctx.dbUser!.currency;
+    const sym = currencySymbol(expense.currency);
     await ctx.editMessageText(
-      `${getCategoryEmoji(category)} Записал: *${expense.name}* — ${Number(expense.amount).toFixed(2)} ${currency} (${getCategoryName(category)})`,
+      `${getCategoryEmoji(category)} Записал: *${expense.name}* — ${Number(expense.amount).toFixed(2)} ${sym} (${getCategoryName(category)})`,
       {
         parse_mode: "Markdown",
         reply_markup: expenseActionsKeyboard(expenseId),
@@ -145,19 +166,22 @@ export function setupExpenseHandler(bot: Bot<BotContext>) {
     const parsed = parseExpense(ctx.message.text);
     if (!parsed) return; // Not recognized as expense, ignore
 
+    const expCurrency = parsed.currency || ctx.dbUser!.currency;
+
     const expense = await prisma.expense.create({
       data: {
         userId: ctx.dbUser!.id,
         name: parsed.name,
         amount: parsed.amount,
+        currency: expCurrency,
         category: parsed.category,
         source: "bot",
       },
     });
 
-    const currency = ctx.dbUser!.currency;
+    const sym = currencySymbol(expCurrency);
     await ctx.reply(
-      `${getCategoryEmoji(parsed.category)} Записал: *${parsed.name}* — ${parsed.amount.toFixed(2)} ${currency} (${getCategoryName(parsed.category)})`,
+      `${getCategoryEmoji(parsed.category)} Записал: *${parsed.name}* — ${parsed.amount.toFixed(2)} ${sym} (${getCategoryName(parsed.category)})`,
       {
         parse_mode: "Markdown",
         reply_markup: expenseActionsKeyboard(expense.id),

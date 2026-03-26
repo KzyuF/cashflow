@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Ring } from "../components/charts/Ring";
 import { Pill } from "../components/ui/Pill";
+import { currencySymbol } from "../utils/constants";
 import { fmtDate } from "../utils/format";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
@@ -10,6 +11,8 @@ export function People() {
   const [people, setPeople] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
   const setModal = useAppStore((s) => s.setModal);
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const sym = currencySymbol(userCurrency);
 
   useEffect(() => {
     api.getPeople().then(setPeople).catch(console.error);
@@ -84,7 +87,7 @@ export function People() {
                 Тебе должны
               </div>
               <div className="text-lg font-black font-mono text-accent-green">
-                +{theyOweMe.toFixed(0)} €
+                +{theyOweMe.toFixed(0)} {sym}
               </div>
             </div>
             <div className="bg-accent-red/[0.06] rounded-[11px] py-[9px] px-3">
@@ -92,7 +95,7 @@ export function People() {
                 Ты должен
               </div>
               <div className="text-lg font-black font-mono text-accent-red">
-                −{iOweThem.toFixed(0)} €
+                −{iOweThem.toFixed(0)} {sym}
               </div>
             </div>
           </div>
@@ -186,7 +189,7 @@ export function People() {
                   }}
                 >
                   {p.direction === "they_owe" ? "+" : "−"}
-                  {Number(p.amount).toFixed(0)} €
+                  {Number(p.amount).toFixed(0)} {sym}
                 </div>
               </div>
             </div>

@@ -51,11 +51,21 @@ export function openAppKeyboard(url: string): InlineKeyboard {
   return new InlineKeyboard().webApp("📊 Открыть Cashflow", url);
 }
 
+export function languageKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("🇷🇺 Русский", "lang:ru")
+    .text("🇬🇧 English", "lang:en");
+}
+
 export function currencyKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("EUR €", "currency:EUR")
     .text("USD $", "currency:USD")
-    .row()
     .text("GBP £", "currency:GBP")
-    .text("RUB ₽", "currency:RUB");
+    .text("RUB ₽", "currency:RUB")
+    .row()
+    .text("UAH ₴", "currency:UAH")
+    .text("PLN zł", "currency:PLN")
+    .text("TRY ₺", "currency:TRY")
+    .text("KZT ₸", "currency:KZT");
 }

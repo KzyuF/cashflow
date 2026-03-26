@@ -33,16 +33,29 @@ export async function expenseRoutes(app: FastifyInstance) {
       name: string;
       amount: number;
       category: string;
+      currency?: string;
       accountId?: number;
       date?: string;
       note?: string;
     };
+
+    // Determine currency: explicit > account's > user's default
+    let expCurrency = body.currency;
+    if (!expCurrency && body.accountId) {
+      const acc = await prisma.account.findUnique({ where: { id: body.accountId } });
+      expCurrency = acc?.currency;
+    }
+    if (!expCurrency) {
+      const user = await prisma.user.findUnique({ where: { id: request.userId } });
+      expCurrency = user?.currency || "EUR";
+    }
 
     const expense = await prisma.expense.create({
       data: {
         userId: request.userId,
         name: body.name,
         amount: body.amount,
+        currency: expCurrency,
         category: body.category,
         accountId: body.accountId,
         date: body.date ? new Date(body.date) : new Date(),

@@ -26,6 +26,7 @@ export function authMiddleware(prisma: PrismaClient): MiddlewareFn<BotContext> {
       id: user.id,
       telegramId: user.telegramId,
       currency: user.currency,
+      language: user.language,
       onboardingDone: user.onboardingDone,
     };
 

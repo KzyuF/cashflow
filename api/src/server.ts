@@ -10,6 +10,9 @@ import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { debtRoutes } from "./routes/debts.js";
 import { peopleRoutes } from "./routes/people.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { currencyRoutes } from "./routes/currency.js";
+import { userRoutes } from "./routes/user.js";
+import { fetchRates } from "./services/currency.service.js";
 
 export const prisma = new PrismaClient();
 
@@ -37,9 +40,19 @@ app.register(subscriptionRoutes, { prefix: "/api/subscriptions" });
 app.register(debtRoutes, { prefix: "/api/debts" });
 app.register(peopleRoutes, { prefix: "/api/people" });
 app.register(dashboardRoutes, { prefix: "/api/dashboard" });
+app.register(currencyRoutes, { prefix: "/api/currency" });
+app.register(userRoutes, { prefix: "/api/user" });
 
 // Health check
 app.get("/health", async () => ({ status: "ok" }));
+
+// Fetch currency rates on startup
+fetchRates(prisma).catch((err) => console.error("Initial rate fetch failed:", err));
+
+// Refresh rates every 6 hours
+setInterval(() => {
+  fetchRates(prisma).catch((err) => console.error("Rate fetch failed:", err));
+}, 6 * 60 * 60 * 1000);
 
 const port = parseInt(process.env.API_PORT || "3000");
 const host = process.env.API_HOST || "0.0.0.0";

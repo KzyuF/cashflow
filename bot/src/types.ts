@@ -15,6 +15,7 @@ export interface BotContext extends Context, SessionFlavor<SessionData> {
     id: number;
     telegramId: bigint;
     currency: string;
+    language: string;
     onboardingDone: boolean;
   };
 }

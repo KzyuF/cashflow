@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Ring } from "../components/charts/Ring";
 import { IconCircle } from "../components/ui/IconCircle";
-import { ACCOUNT_TYPES, INCOME_TYPES } from "../utils/constants";
+import { Pill } from "../components/ui/Pill";
+import { ACCOUNT_TYPES, INCOME_TYPES, CURRENCIES, CURRENCY_CODES, currencySymbol } from "../utils/constants";
 import { fmtK, fmtDate, daysUntil } from "../utils/format";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
@@ -11,7 +12,10 @@ export function Accounts() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [income, setIncome] = useState<any[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const setModal = useAppStore((s) => s.setModal);
+  const userCurrency = useAppStore((s) => s.userCurrency);
+  const setUserCurrency = useAppStore((s) => s.setUserCurrency);
 
   useEffect(() => {
     api.getAccounts().then(setAccounts).catch(console.error);
@@ -19,17 +23,23 @@ export function Accounts() {
   }, []);
 
   const total = accounts.reduce((s, a) => s + Number(a.balance), 0);
+  const sym = currencySymbol(userCurrency);
 
   const segments = accounts.map((a) => ({
     value: Number(a.balance),
     color: (ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other).color,
   }));
 
-  // Distribution by type
   const byType: Record<string, number> = {};
   accounts.forEach((a) => {
     byType[a.type] = (byType[a.type] || 0) + Number(a.balance);
   });
+
+  const handleCurrencyChange = async (code: string) => {
+    await api.updateUser({ currency: code });
+    setUserCurrency(code);
+    setShowSettings(false);
+  };
 
   return (
     <>
@@ -40,7 +50,7 @@ export function Accounts() {
             <div className="text-lg font-black font-mono">
               {fmtK(total)}
             </div>
-            <div className="text-[9px] text-[#556]">EUR</div>
+            <div className="text-[9px] text-[#556]">{userCurrency}</div>
           </Ring>
           <div className="flex-1">
             <div className="text-xs text-[#556] mb-1.5">Распределение</div>
@@ -59,13 +69,46 @@ export function Accounts() {
                     {meta.name}
                   </span>
                   <span className="text-[11px] font-bold font-mono">
-                    {fmtK(sum)} €
+                    {fmtK(sum)} {sym}
                   </span>
                 </div>
               );
             })}
           </div>
         </Card>
+      </div>
+
+      {/* Currency settings */}
+      <div className="px-[18px] mt-[18px]">
+        <div
+          className="flex justify-between items-center mb-2.5 cursor-pointer"
+          onClick={() => setShowSettings(!showSettings)}
+        >
+          <span className="text-xs font-bold text-[#556] tracking-wider uppercase">
+            Основная валюта: {userCurrency} {sym}
+          </span>
+          <button
+            className="text-[11px] font-bold text-accent-primary px-[11px] py-[5px] rounded-[9px] border border-accent-primary/30 bg-transparent cursor-pointer"
+          >
+            {showSettings ? "Скрыть" : "Сменить"}
+          </button>
+        </div>
+        {showSettings && (
+          <Card className="animate-slide-up">
+            <div className="flex gap-[5px] flex-wrap">
+              {CURRENCY_CODES.map((code) => (
+                <Pill
+                  key={code}
+                  selected={userCurrency === code}
+                  color="#00d2ff"
+                  onClick={() => handleCurrencyChange(code)}
+                >
+                  {CURRENCIES[code].symbol} {code}
+                </Pill>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* All accounts */}
@@ -85,6 +128,7 @@ export function Accounts() {
           const meta = ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other;
           const isDeposit = a.interestRate && Number(a.interestRate) > 0;
           const exp = expandedId === a.id;
+          const accSym = currencySymbol(a.currency);
           return (
             <Card
               key={a.id}
@@ -111,6 +155,9 @@ export function Accounts() {
                     >
                       {meta.name}
                     </span>
+                    <span className="text-[9px] font-bold px-[7px] py-[2px] rounded-[7px] bg-white/[0.05] text-[#889]">
+                      {a.currency}
+                    </span>
                     {isDeposit && (
                       <span
                         className="text-[9px] font-bold px-[7px] py-[2px] rounded-[7px]"
@@ -124,11 +171,18 @@ export function Accounts() {
                     )}
                   </div>
                 </div>
-                <div
-                  className="text-xl font-black font-mono"
-                  style={{ color: meta.color }}
-                >
-                  {fmtK(Number(a.balance))} €
+                <div className="text-right">
+                  <div
+                    className="text-xl font-black font-mono"
+                    style={{ color: meta.color }}
+                  >
+                    {fmtK(Number(a.balance))} {accSym}
+                  </div>
+                  {a.currency !== userCurrency && a.balanceInMain != null && (
+                    <div className="text-[10px] text-[#556] font-mono">
+                      ≈ {fmtK(a.balanceInMain)} {sym}
+                    </div>
+                  )}
                 </div>
               </div>
               {exp && isDeposit && (
@@ -141,7 +195,7 @@ export function Accounts() {
                     {
                       label: "След. проценты",
                       value: a.interestAmount
-                        ? `+${Number(a.interestAmount)} €`
+                        ? `+${Number(a.interestAmount)} ${accSym}`
                         : "—",
                       color: "#00ffcc",
                     },
@@ -195,6 +249,7 @@ export function Accounts() {
         </div>
         {income.map((inc) => {
           const meta = INCOME_TYPES[inc.type] || INCOME_TYPES.other;
+          const incSym = currencySymbol(inc.currency || userCurrency);
           return (
             <div
               key={inc.id}
@@ -219,7 +274,7 @@ export function Accounts() {
                 </div>
               </div>
               <div className="font-extrabold text-[15px] font-mono text-accent-green">
-                +{Number(inc.amount).toFixed(2)}
+                +{Number(inc.amount).toFixed(2)} {incSym}
               </div>
             </div>
           );

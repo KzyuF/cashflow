@@ -1,7 +1,10 @@
+import { detectCurrencyInText } from "../../../shared/currencies.js";
+
 export interface ParsedExpense {
   name: string;
   amount: number;
   category: string;
+  currency: string | null; // null = use user's default
 }
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
@@ -59,8 +62,12 @@ const CATEGORY_NAMES: Record<string, string> = {
 };
 
 export function parseExpense(text: string): ParsedExpense | null {
+  // Detect currency in text: "кофе 4.50 usd", "кофе 4.50$"
+  const { cleanText, currency } = detectCurrencyInText(text);
+  const workText = cleanText;
+
   // Match numbers: 4.50, 4,50, 4.5, 450, 1 234.50
-  const amountMatch = text.match(
+  const amountMatch = workText.match(
     /(\d[\d\s]*[.,]\d{1,2}|\d[\d\s]*)/
   );
 
@@ -73,9 +80,8 @@ export function parseExpense(text: string): ParsedExpense | null {
   if (isNaN(amount) || amount <= 0) return null;
 
   // Everything except the number is the name
-  let name = text
+  let name = workText
     .replace(amountMatch[0], "")
-    .replace(/[€$₽£]/g, "")
     .trim();
 
   if (!name) name = "Расход";
@@ -83,10 +89,10 @@ export function parseExpense(text: string): ParsedExpense | null {
   // Capitalize first letter
   name = name.charAt(0).toUpperCase() + name.slice(1);
 
-  // Detect category
+  // Detect category from original text
   const category = detectCategory(text.toLowerCase());
 
-  return { name, amount, category };
+  return { name, amount, category, currency };
 }
 
 function detectCategory(text: string): string {
